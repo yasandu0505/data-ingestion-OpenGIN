@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json();
-    const { readApiUrl, updateApiUrl } = body;
+    const { readApiUrl, updateApiUrl, kindPairs = [] } = body;
 
     // Validate required fields
     if (!readApiUrl || !updateApiUrl) {
@@ -53,14 +53,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate kindPairs if provided
+    if (kindPairs && Array.isArray(kindPairs)) {
+      for (const pair of kindPairs) {
+        if (!pair.majorKind || !pair.minorKind) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: 'Invalid kind pairs',
+              message: 'Each kind pair must have both majorKind and minorKind',
+            },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
     // Create new endpoint document
-    const endpoint = new Endpoint({
+    const endpointData: any = {
       readApiUrl,
       updateApiUrl,
-    });
+    };
+
+    // Only add kindPairs if it's a non-empty array
+    if (kindPairs && Array.isArray(kindPairs) && kindPairs.length > 0) {
+      endpointData.kindPairs = kindPairs;
+    } else {
+      endpointData.kindPairs = [];
+    }
+
+
+    const endpoint = new Endpoint(endpointData);
 
     // Save to database
     const savedEndpoint = await endpoint.save();
+    
 
     return NextResponse.json(
       {

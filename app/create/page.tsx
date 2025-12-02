@@ -1,11 +1,10 @@
 "use client";
-import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { useRouter } from "next/navigation";
+import { useApiUrls } from "@/lib/api-urls-context";
 
-function CreateContent() {
-  const searchParams = useSearchParams();
-  const readApiUrl = searchParams.get('readApiUrl') || '';
-  const updateApiUrl = searchParams.get('updateApiUrl') || '';
+export default function Create() {
+  const router = useRouter();
+  const { readApiUrl, updateApiUrl } = useApiUrls();
 
   const handleOrgCreation = () => {
     // TODO: Handle organization creation
@@ -13,8 +12,7 @@ function CreateContent() {
   };
 
   const handleDataInsertion = () => {
-    // TODO: Handle data insertion
-    console.log('Data insertion clicked');
+    router.push('/data-insertion');
   };
 
   return (
@@ -35,17 +33,5 @@ function CreateContent() {
         <h2 className="text-2xl font-semibold text-gray-800">Data Insertion for Organization</h2>
       </div>
     </div>
-  );
-}
-
-export default function Create() {
-  return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg">Loading...</div>
-      </div>
-    }>
-      <CreateContent />
-    </Suspense>
   );
 }

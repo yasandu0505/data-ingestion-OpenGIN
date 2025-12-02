@@ -1,17 +1,19 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useApiUrls, IKindPair } from "@/lib/api-urls-context";
 
 type ConnectionPhase = 'idle' | 'saving' | 'saved' | 'validating' | 'success' | 'failed';
 
 export default function Home() {
 
   const router = useRouter();
+  const { setApiUrls } = useApiUrls();
   const [readApiUrl, setReadApiUrl] = useState("");
   const [updateApiUrl, setUpdateApiUrl] = useState("");
+  const [kindPairs, setKindPairs] = useState<IKindPair[]>([{ majorKind: "", minorKind: "" }]);
   const [phase, setPhase] = useState<ConnectionPhase>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [savedUrls, setSavedUrls] = useState<{ readApiUrl: string; updateApiUrl: string } | null>(null);
 
   const handleConnect = async () => {
     // Validate inputs
@@ -20,9 +22,25 @@ export default function Home() {
       return;
     }
 
+    // Filter out empty kind pairs and validate
+    const validKindPairs = kindPairs.filter(
+      (pair) => pair.majorKind.trim() && pair.minorKind.trim()
+    );
+
     // Start the process - unmount form and show loading
     setPhase('saving');
     setErrorMessage(null);
+
+    const requestBody = {
+      readApiUrl: readApiUrl.trim(),
+      updateApiUrl: updateApiUrl.trim(),
+      kindPairs: validKindPairs.map((pair) => ({
+        majorKind: pair.majorKind.trim(),
+        minorKind: pair.minorKind.trim(),
+      })),
+    };
+
+    console.log('Sending request with kindPairs:', JSON.stringify(requestBody, null, 2));
 
     try {
       // Step 1: Save endpoints
@@ -31,10 +49,7 @@ export default function Home() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          readApiUrl: readApiUrl.trim(),
-          updateApiUrl: updateApiUrl.trim(),
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const data = await response.json();
@@ -64,16 +79,17 @@ export default function Home() {
           const validateData = await validateResponse.json();
 
           if (validateResponse.ok && validateData.success) {
-            // Step 4: Connection successful - store URLs and show success message
-            setSavedUrls({
-              readApiUrl: data.data.readApiUrl,
-              updateApiUrl: data.data.updateApiUrl,
-            });
+            // Step 4: Connection successful - store URLs and kindPairs in context and show success message
+            setApiUrls(
+              data.data.readApiUrl,
+              data.data.updateApiUrl,
+              data.data.kindPairs || []
+            );
             setPhase('success');
             
             // Navigate to /create after showing success message for 1.5 seconds
             setTimeout(() => {
-              router.push(`/create?readApiUrl=${encodeURIComponent(data.data.readApiUrl)}&updateApiUrl=${encodeURIComponent(data.data.updateApiUrl)}`);
+              router.push('/create');
             }, 1500);
           } else {
             // Step 4: Connection failed
@@ -105,8 +121,25 @@ export default function Home() {
     setPhase('idle');
     setReadApiUrl("");
     setUpdateApiUrl("");
+    setKindPairs([{ majorKind: "", minorKind: "" }]);
     setErrorMessage(null);
   }
+
+  const addKindPair = () => {
+    setKindPairs([...kindPairs, { majorKind: "", minorKind: "" }]);
+  };
+
+  const removeKindPair = (index: number) => {
+    if (kindPairs.length > 1) {
+      setKindPairs(kindPairs.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateKindPair = (index: number, field: 'majorKind' | 'minorKind', value: string) => {
+    const updated = [...kindPairs];
+    updated[index] = { ...updated[index], [field]: value };
+    setKindPairs(updated);
+  };
 
   // Loading component that shows different states
   const LoadingComponent = () => {
@@ -179,25 +212,69 @@ export default function Home() {
   // Render form or loading component based on phase
   if (phase === 'idle') {
     return (
-      <div className="flex flex-col items-center justify-center h-screen gap-4">
+      <div className="flex flex-col items-center justify-center min-h-screen gap-4 py-8 px-4">
         <h1 className="text-2xl font-bold">Connect to OpenGIN</h1>
-        <div className="flex flex-col gap-3 w-full max-w-md">
-          <input 
-            type="text" 
-            className="border-2 border-gray-300 rounded-md p-2" 
-            placeholder="Read API" 
-            value={readApiUrl} 
-            onChange={(e) => setReadApiUrl(e.target.value)}
-          />
-          <input 
-            type="text" 
-            className="border-2 border-gray-300 rounded-md p-2" 
-            placeholder="Update API" 
-            value={updateApiUrl} 
-            onChange={(e) => setUpdateApiUrl(e.target.value)}
-          />
+        <div className="flex flex-col gap-4 w-full max-w-md">
+          <div className="flex flex-col gap-3">
+            <input 
+              type="text" 
+              className="border-2 border-gray-300 rounded-md p-2" 
+              placeholder="Read API" 
+              value={readApiUrl} 
+              onChange={(e) => setReadApiUrl(e.target.value)}
+            />
+            <input 
+              type="text" 
+              className="border-2 border-gray-300 rounded-md p-2" 
+              placeholder="Update API" 
+              value={updateApiUrl} 
+              onChange={(e) => setUpdateApiUrl(e.target.value)}
+            />
+          </div>
+
+          {/* Kind Pairs Section */}
+          <div className="flex flex-col gap-3">
+            <label className="text-sm font-medium text-gray-700">Kind Pairs</label>
+            {kindPairs.map((pair, index) => (
+              <div key={index} className="flex gap-2 items-center">
+                <input
+                  type="text"
+                  className="border-2 border-gray-300 rounded-md p-2 flex-1"
+                  placeholder="Major Kind"
+                  value={pair.majorKind}
+                  onChange={(e) => updateKindPair(index, 'majorKind', e.target.value)}
+                />
+                <input
+                  type="text"
+                  className="border-2 border-gray-300 rounded-md p-2 flex-1"
+                  placeholder="Minor Kind"
+                  value={pair.minorKind}
+                  onChange={(e) => updateKindPair(index, 'minorKind', e.target.value)}
+                />
+                {kindPairs.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeKindPair(index)}
+                    className="bg-red-500 text-white px-3 py-2 rounded-md hover:bg-red-600 transition-colors"
+                    title="Remove pair"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={addKindPair}
+              className="bg-gray-500 text-white p-2 rounded-md hover:bg-gray-600 transition-colors flex items-center justify-center gap-2"
+            >
+              <span>+</span>
+              <span>Add Kind Pair</span>
+            </button>
+          </div>
+
           <button 
-            className="bg-blue-500 text-white p-2 rounded-md hover:bg-blue-600" 
+            className="bg-blue-500 text-white p-2 rounded-md hover:bg-blue-600 transition-colors" 
             onClick={handleConnect}
           >
             Connect

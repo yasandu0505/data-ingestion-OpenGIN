@@ -1,9 +1,16 @@
 import mongoose, { Schema, Model, Document } from 'mongoose';
 
+// Define the interface for kind pairs
+export interface IKindPair {
+  majorKind: string;
+  minorKind: string;
+}
+
 // Define the interface for the endpoint document
 export interface IEndpoint extends Document {
   readApiUrl: string;
   updateApiUrl: string;
+  kindPairs: IKindPair[];
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -21,6 +28,23 @@ const EndpointSchema: Schema = new Schema(
       required: [true, 'updateApiUrl is required'],
       trim: true,
     },
+    kindPairs: {
+      type: [
+        {
+          majorKind: {
+            type: String,
+            required: true,
+            trim: true,
+          },
+          minorKind: {
+            type: String,
+            required: true,
+            trim: true,
+          },
+        },
+      ],
+      default: [],
+    },
   },
   {
     timestamps: true, // Automatically adds createdAt and updatedAt
@@ -28,9 +52,12 @@ const EndpointSchema: Schema = new Schema(
 );
 
 // Create and export the model
-// Use existing connection if available, otherwise mongoose will create a new one
-const Endpoint: Model<IEndpoint> =
-  mongoose.models.Endpoint || mongoose.model<IEndpoint>('Endpoint', EndpointSchema);
+// Delete the model if it exists to ensure schema updates are applied
+if (mongoose.models.Endpoint) {
+  delete mongoose.models.Endpoint;
+}
+
+const Endpoint: Model<IEndpoint> = mongoose.model<IEndpoint>('Endpoint', EndpointSchema);
 
 // Helper function to ensure Mongoose is connected
 // This uses the connection from mongodb.ts
