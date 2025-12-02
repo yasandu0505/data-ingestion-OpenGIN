@@ -1,10 +1,13 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useApiUrls } from "@/lib/api-urls-context";
 
 export default function DataInsertion() {
+  const router = useRouter();
   const { kindPairs, readApiUrl } = useApiUrls();
   const [counts, setCounts] = useState<{ [key: string]: number | null }>({});
+  const [entities, setEntities] = useState<{ [key: string]: any[] }>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -35,26 +38,34 @@ export default function DataInsertion() {
           const data = await response.json();
           
           if (response.ok && data.success) {
-            return { key, count: data.count || 0 };
+            return { 
+              key, 
+              count: data.count || 0,
+              entities: data.data || []
+            };
           } else {
-            return { key, count: null };
+            return { key, count: null, entities: [] };
           }
         } catch (error) {
           console.error(`Error fetching count for ${key}:`, error);
-          return { key, count: null };
+          return { key, count: null, entities: [] };
         }
       });
 
       // Wait for all promises to resolve
       const results = await Promise.all(promises);
       
-      // Convert results to object
+      // Convert results to objects
       const countsMap: { [key: string]: number | null } = {};
-      results.forEach(({ key, count }) => {
+      const entitiesMap: { [key: string]: any[] } = {};
+      
+      results.forEach(({ key, count, entities }) => {
         countsMap[key] = count;
+        entitiesMap[key] = entities;
       });
       
       setCounts(countsMap);
+      setEntities(entitiesMap);
       setLoading(false);
     };
 
@@ -62,8 +73,18 @@ export default function DataInsertion() {
   }, [kindPairs, readApiUrl]);
 
   const handleEntitySelect = (majorKind: string, minorKind: string) => {
-    // TODO: Handle entity selection
-    console.log('Selected entity:', { majorKind, minorKind });
+    const key = `${majorKind}-${minorKind}`;
+    const entityData = entities[key] || [];
+    
+    // Store entity data in localStorage for the next page
+    localStorage.setItem('selectedEntities', JSON.stringify({
+      majorKind,
+      minorKind,
+      entities: entityData,
+    }));
+    
+    // Navigate to entity list page
+    router.push(`/data-insertion/entities?majorKind=${encodeURIComponent(majorKind)}&minorKind=${encodeURIComponent(minorKind)}`);
   };
 
   return (
