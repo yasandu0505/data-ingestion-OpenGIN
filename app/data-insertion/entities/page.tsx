@@ -135,6 +135,10 @@ function EntitiesContent() {
     }
   };
 
+  const handleInsertData = (entity: any) => {
+    router.push(`/data-insertion/insert?entityId=${entity.id}`);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 py-8 px-4">
@@ -230,15 +234,24 @@ function EntitiesContent() {
                   className="p-6 hover:bg-gray-50 transition-colors"
                 >
                   <div className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-3">
                       <p className="text-lg font-semibold text-gray-800">
                         ID: {entity.id}
                       </p>
-                      {entity.created && (
-                        <p className="text-sm text-gray-500">
-                          Created: {new Date(entity.created).toLocaleDateString()}
-                        </p>
-                      )}
+                      <div className="flex items-center gap-3">
+                        {entity.created && (
+                          <p className="text-sm text-gray-500">
+                            Created: {new Date(entity.created).toLocaleDateString()}
+                          </p>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleInsertData(entity)}
+                          className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                        >
+                          Insert Data
+                        </button>
+                      </div>
                     </div>
                     {entity.name && (
                       <p className="text-sm text-gray-600">
